@@ -1,9 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using UnityEngine;
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 public class Game : PersistableObject
 {
-	const int SAVE_VERSION = 1;
+	private const int SAVE_VERSION = 1;
 
 	[SerializeField] private ShapeFactory _shapeFactory;
 	
@@ -11,10 +14,16 @@ public class Game : PersistableObject
 	[SerializeField] private KeyCode _newGameKey = KeyCode.N;
 	[SerializeField] private KeyCode _saveKey = KeyCode.S;
 	[SerializeField] private KeyCode _loadKey = KeyCode.L;
+	[SerializeField] private KeyCode _destoryKey = KeyCode.X;
 	
 	[SerializeField] private PersistentStorage _storage;
 	
 	private List<Shape> _shapes;
+	private float _creationProgress;
+	private float _destructionProgress;
+
+	public float CreationSpeed { get; set; }
+	public float DestructionSpeed { get; set; }
 
 	private void Awake()
 	{
@@ -40,15 +49,49 @@ public class Game : PersistableObject
 			BeginNewGame();
 			_storage.Load(this);
 		}
+		else if (Input.GetKeyDown((_destoryKey)))
+		{
+			DestroyShape();
+		}
+
+		_creationProgress += Time.deltaTime * CreationSpeed;
+
+		while (_creationProgress >= 1f)
+		{
+			_creationProgress -= 1f;
+			CreateShape();
+		}
+		
+		_destructionProgress += Time.deltaTime * DestructionSpeed;
+
+		while (_destructionProgress >= 1f)
+		{
+			_destructionProgress -= 1f;
+			DestroyShape();
+		}
+	}
+
+	private void DestroyShape()
+	{
+		if (_shapes.Count <= 0)
+		{
+			return;
+		}
+
+		var index = Random.Range(0, _shapes.Count);
+		_shapeFactory.Reclaim(_shapes[index]);
+		var lastIndex = _shapes.Count - 1;
+		_shapes[index] = _shapes[lastIndex];
+		_shapes.RemoveAt(lastIndex);
 	}
 
 	private void BeginNewGame()
 	{
-		for (var i = 0; i < _shapes.Count; i++)
+		foreach (var shape in _shapes)
 		{
-			Destroy(_shapes[i].gameObject);
-		}	
-		
+			_shapeFactory.Reclaim(shape);
+		}
+
 		_shapes.Clear();
 	}
 
